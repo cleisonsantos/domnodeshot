@@ -106,21 +106,6 @@ Se você quiser evoluir esta extensão, ideias comuns:
 
 ---
 
-## Publicar este projeto no GitHub
-
-Se quiser subir este projeto para um repositório remoto, rode:
-
-```bash
-git init
-git add .
-git commit -m "feat: extensão DOM Node Selector"
-git remote add origin git@github.com:cleisonsantos/domnodeshot.git
-git branch -M main
-git push -u origin main
-```
-
-> Se o repositório remoto já tiver commits (ex.: README criado no GitHub), faça antes um `git pull --rebase origin main` ou use `git push -u origin main --force` com cuidado.
-
 ## Licença
 
 Defina a licença que preferir (MIT, Apache-2.0, etc.).

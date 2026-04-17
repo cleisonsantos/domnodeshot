@@ -1,0 +1,41 @@
+/* styles.css
+   Estilos do overlay de destaque e cursor de inspeção.
+*/
+
+.domnodeshot-overlay {
+  position: fixed !important;
+  z-index: 2147483647 !important;
+  pointer-events: none !important;
+  display: none;
+  box-sizing: border-box !important;
+
+  outline: 2px solid rgb(0, 100, 255) !important;
+  background: rgba(0, 100, 255, 0.16) !important;
+}
+
+.domnodeshot-overlay-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translateY(-100%);
+  max-width: min(60vw, 640px);
+  padding: 2px 6px;
+  font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  color: white;
+  background: rgb(0, 100, 255);
+  border-radius: 4px 4px 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Cursor de inspeção em toda a página enquanto ativo */
+.domnodeshot-cursor,
+.domnodeshot-cursor * {
+  cursor: crosshair !important;
+}
+
+/* Travar scroll da página enquanto o modo de seleção está ativo */
+.domnodeshot-no-scroll {
+  overflow: hidden !important;
+}

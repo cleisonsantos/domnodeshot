@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "DOM Node Selector (OuterHTML Copier)",
+  "version": "1.0.0",
+  "description": "Ativa um modo de seleção visual (estilo DevTools) e copia o outerHTML do elemento clicado.",
+  "permissions": ["scripting", "activeTab", "tabs", "downloads", "debugger"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "toggle-selector": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+X",
+        "mac": "Command+Shift+X"
+      },
+      "description": "Ativar/Desativar modo de seleção de elementos"
+    }
+  }
+}

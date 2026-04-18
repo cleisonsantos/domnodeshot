@@ -1,9 +1,22 @@
 {
   "manifest_version": 3,
-  "name": "DOM Node Selector (OuterHTML Copier)",
+  "name": "DOMnodeshot",
   "version": "1.0.0",
-  "description": "Ativa um modo de seleção visual (estilo DevTools) e copia o outerHTML do elemento clicado.",
-  "permissions": ["scripting", "activeTab", "tabs", "downloads", "debugger", "clipboardWrite"],
+  "description": "Seleciona elementos com overlay visual, captura PNG em tamanho completo, baixa imagem e copia imagem para clipboard (Ctrl/Shift copia outerHTML).",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "scripting",
+    "activeTab",
+    "tabs",
+    "downloads",
+    "debugger",
+    "clipboardWrite"
+  ],
   "background": {
     "service_worker": "background.js"
   },

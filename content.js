@@ -236,7 +236,7 @@ async function onClickCapture(ev) {
 function onKeyDownCapture(ev) {
   if (!active) return;
 
-  if (ev.key === "Escape") {
+  if (ev.key === "Escape" || ev.key === "Esc") {
     ev.preventDefault();
     ev.stopPropagation();
     ev.stopImmediatePropagation();

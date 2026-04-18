@@ -26,7 +26,7 @@ A seleção de elementos, captura de imagem, geração de arquivo e cópia para 
 Extensão não realiza transmissão de conteúdo de páginas para backend externo.
 
 ## Contato
-Adicionar email de suporte/publicação aqui.
+css.cleison@outlook.com
 
 ## Alterações nesta política
 Esta política pode ser atualizada para refletir mudanças de produto ou exigências regulatórias.

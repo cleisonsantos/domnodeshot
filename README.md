@@ -94,6 +94,15 @@ Se conflito: `chrome://extensions/shortcuts`.
 
 ---
 
+## Publicação na Chrome Web Store
+
+Materiais prontos no repositório:
+
+- `docs/cws/STORE_LISTING.pt-BR.md` — resumo curto + descrição completa
+- `docs/cws/PERMISSIONS_JUSTIFICATION.pt-BR.md` — justificativa de permissões
+- `docs/cws/PUBLISH_CHECKLIST.pt-BR.md` — checklist final de submissão
+- `PRIVACY_POLICY.md` — política de privacidade
+
 ## Licença
 
 Defina licença desejada (MIT, Apache-2.0, etc.).

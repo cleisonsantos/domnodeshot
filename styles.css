@@ -32,7 +32,7 @@
 /* Cursor de inspeção em toda a página enquanto ativo */
 .domnodeshot-cursor,
 .domnodeshot-cursor * {
-  cursor: crosshair !important;
+  cursor: pointer !important;
 }
 
 /* Travar scroll da página enquanto o modo de seleção está ativo */

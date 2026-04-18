@@ -1,111 +1,99 @@
-# DOM Node Selector (OuterHTML Copier) — Extensão Chrome (Manifest V3)
+# DOM Node Selector — Extensão Chrome (Manifest V3)
 
-Extensão para Google Chrome (Manifest V3) que replica o comportamento do **seletor de elementos do DevTools** (estilo `Ctrl+Shift+C`), permitindo:
+Extensão para Google Chrome (Manifest V3) que replica seletor de elementos do DevTools (estilo `Ctrl+Shift+C`), com captura de imagem do elemento.
 
-- Ativar/desativar um **modo de seleção visual** via atalho de teclado.
-- Destacar (highlight) elementos ao passar o mouse.
-- Ao clicar em um elemento, capturar o **`outerHTML`**.
-- Copiar automaticamente o HTML capturado para a **área de transferência (clipboard)**.
-- Baixar automaticamente um **PNG do elemento em tamanho completo** sem precisar rolar visualmente a página (via CDP/debugger).
-- Desativar o modo de seleção automaticamente após a captura.
+## O que faz
 
-> Observação: o DevTools tem privilégios especiais. Aqui o comportamento é implementado via **Content Script + CSS** usando as APIs de extensão.
+- Ativa/desativa modo de seleção visual via atalho.
+- Destaca elemento sob cursor com overlay fixo (sem quebrar layout).
+- Hit-test mais estável: amostra pontos ao redor do cursor para melhorar precisão.
+- Ao clicar em elemento:
+  - baixa PNG do elemento em tamanho completo (via CDP/debugger);
+  - copia **imagem** para clipboard por padrão.
+- Com modificador no clique (`Ctrl` ou `Shift`): copia **`outerHTML`** em vez da imagem.
+- Desativa modo de seleção automaticamente após captura.
 
----
-
-## Estrutura do projeto
-
-- `manifest.json` — Configuração da extensão (Manifest V3), permissões (`scripting`, `downloads`, `debugger`, etc.) e atalho (`commands`).
-- `background.js` — Service Worker: escuta o atalho, injeta scripts/CSS, controla estado por aba e faz screenshot/recorte para baixar PNG.
-- `content.js` — Script injetado na página: faz o highlight, intercepta clique e copia o `outerHTML`.
-- `styles.css` — Estilo do destaque (outline + overlay) e cursor de mira.
+> Observação: DevTools tem privilégios especiais. Aqui comportamento vem de Content Script + CSS + APIs de extensão.
 
 ---
 
-## Como instalar/testar (Modo Desenvolvedor)
+## Estrutura
 
-1. Abra o Chrome e acesse: `chrome://extensions`
-2. Ative **Modo do desenvolvedor**.
-3. Clique em **Carregar sem compactação**.
-4. Selecione a pasta deste projeto (onde está o `manifest.json`).
-5. Abra qualquer site e use o atalho para ativar o modo de seleção.
+- `manifest.json`
+  - Manifest V3, permissões (`scripting`, `downloads`, `debugger`, `clipboardWrite`, etc.), comando/atalho.
+- `background.js`
+  - Service Worker: toggle por aba, injeção de script/CSS, captura via CDP, download do PNG.
+- `content.js`
+  - Seleção, overlay, clique, decisão de modo de cópia (imagem vs HTML), integração com clipboard.
+- `styles.css`
+  - Estilo do highlight/overlay/cursor.
 
 ---
 
-## Atalho de teclado
+## Instalação (modo desenvolvedor)
+
+1. Abrir `chrome://extensions`
+2. Ativar **Modo do desenvolvedor**
+3. Clicar **Carregar sem compactação**
+4. Selecionar pasta do projeto (`manifest.json`)
+5. Abrir site qualquer e usar atalho
+
+---
+
+## Atalho
 
 - **Windows/Linux:** `Ctrl + Shift + X`
 - **macOS:** `Command + Shift + X`
 
-Esse atalho é definido em `manifest.json` na seção `commands`.
+Configuração em `manifest.json` (`commands.toggle-selector`).
 
-> Se houver conflito com outro atalho no seu sistema/extensões, você pode mudar em `chrome://extensions/shortcuts`.
-
----
-
-## Como funciona (visão geral)
-
-### 1) `background.js` (Service Worker)
-- Escuta o comando `toggle-selector` (atalho).
-- Descobre a aba ativa.
-- Garante que o `content.js` esteja injetado usando `chrome.scripting.executeScript`.
-- Insere/remove `styles.css` com `chrome.scripting.insertCSS/removeCSS`.
-- Envia mensagem para o content script ligar/desligar o modo de seleção.
-- Mantém um **estado por aba** (Map `tabId -> ativo`), para que o toggle funcione corretamente.
-
-### 2) `content.js` (Content Script)
-Quando o modo está **ativo**:
-- Adiciona listeners em modo **capture** (`true`) para interceptar eventos antes do site:
-  - `mouseover`: aplica destaque no elemento sob o mouse.
-  - `mouseout`: remove destaque quando sai do elemento.
-  - `click`: intercepta o clique, impede a ação do site e captura.
-
-No clique:
-1. `preventDefault()`, `stopPropagation()` e `stopImmediatePropagation()`.
-2. Captura `outerHTML` do elemento (`ev.target.outerHTML`).
-3. Copia o texto para o clipboard:
-   - Tenta `navigator.clipboard.writeText`.
-   - Se falhar, usa fallback `textarea` + `document.execCommand('copy')`.
-4. Pede ao `background.js` para capturar o elemento via **Chrome DevTools Protocol (CDP)** com `Page.captureScreenshot` e `captureBeyondViewport`.
-5. Faz `console.log` com tag/id/classes + metadados.
-6. Desativa o modo automaticamente e notifica o `background.js`.
-
-### 3) `styles.css` (Highlight sem quebrar layout)
-Para evitar alterar o layout da página:
-- Usa `outline` (não afeta fluxo como `border`).
-- Usa `box-shadow` inset grande para criar um “fundo” azul sem mexer nas dimensões.
-- Aplica cursor `crosshair` enquanto o modo está ativo.
+Se conflito: `chrome://extensions/shortcuts`.
 
 ---
 
-## Limitações e notas importantes
+## Fluxo de captura
 
-- **Páginas especiais**: extensões normalmente **não podem** injetar scripts em páginas como:
-  - `chrome://*`
-  - `chromewebstore.google.com`
-  - algumas páginas internas/privadas do navegador
-- **Screenshot do elemento (tamanho completo)**: é feito via CDP/debugger. Em algumas páginas com políticas mais restritas, a captura pode falhar caso o debugger não consiga se anexar à aba.
-- **Clipboard**: a cópia costuma funcionar porque o clique é um gesto do usuário, mas algumas páginas/políticas podem restringir.
-- **Shadow DOM**: o highlight funciona em elementos dentro de Shadow DOM quando o evento chega ao host/target, mas alguns casos avançados podem exigir tratamento extra.
-
----
-
-## Dicas de debug
-
-- Abra o DevTools da página e veja o `console.log` após a captura.
-- Abra `chrome://extensions` → sua extensão → **Service worker** → **Inspect** para ver logs do `background.js`.
+1. Usuário ativa modo de seleção.
+2. `content.js` calcula melhor alvo por `elementsFromPoint` em múltiplos offsets.
+3. Clique interceptado (`preventDefault`, `stopPropagation`, `stopImmediatePropagation`).
+4. `content.js` desativa overlay, espera repaint, pede captura ao `background.js`.
+5. `background.js` usa `chrome.debugger` + `Page.captureScreenshot`:
+   - captura em faixas quando altura grande;
+   - costura faixas (`OffscreenCanvas`) para PNG final.
+6. PNG salvo via `chrome.downloads.download`.
+7. Clipboard:
+   - padrão: tenta copiar **imagem** (`navigator.clipboard.write` + `ClipboardItem`);
+   - com `Ctrl`/`Shift`: copia **HTML** (`navigator.clipboard.writeText` com fallback `execCommand('copy')`).
 
 ---
 
-## Próximos passos (opcional)
+## Permissões usadas
 
-Se você quiser evoluir esta extensão, ideias comuns:
-- Exibir um **toast** na página confirmando “Copiado!” e “Imagem salva”.
-- Capturar também um seletor CSS (ex: `div#id.class1.class2 > span...`).
-- Adicionar fallback automático para `captureVisibleTab` quando CDP estiver indisponível.
+- `scripting`
+- `activeTab`
+- `tabs`
+- `downloads`
+- `debugger`
+- `clipboardWrite`
+
+---
+
+## Limitações
+
+- Não injeta em páginas restritas (`chrome://*`, páginas internas, etc.).
+- Em alguns cenários CDP/debugger pode falhar.
+- Clipboard de imagem depende de suporte de API/permissões/contexto.
+- Shadow DOM complexo pode exigir ajustes extras.
+
+---
+
+## Debug
+
+- Logs da página: DevTools da aba (`console`).
+- Logs do worker: `chrome://extensions` → extensão → **Service worker** → **Inspect**.
 
 ---
 
 ## Licença
 
-Defina a licença que preferir (MIT, Apache-2.0, etc.).
+Defina licença desejada (MIT, Apache-2.0, etc.).

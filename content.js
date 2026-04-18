@@ -102,32 +102,35 @@ async function onClickCapture(ev) {
   if (!(el instanceof Element)) return;
 
   const outerHTML = el.outerHTML;
-
-  // Copia para a área de transferência (com fallback)
-  const copied = await copyToClipboard(outerHTML);
-
   const tag = el.tagName.toLowerCase();
   const id = el.id ? `#${el.id}` : "";
   const classes = el.classList?.length ? "." + [...el.classList].join(".") : "";
 
+  // Calcula retângulo antes de desativar o modo (evita perder referência de alvo).
+  const r = el.getBoundingClientRect();
+  const pageRect = {
+    x: r.left + window.scrollX,
+    y: r.top + window.scrollY,
+    width: r.width,
+    height: r.height
+  };
+
+  // Nome sugerido do arquivo
+  const baseName = `${tag}${el.id ? "-" + el.id : ""}-${Date.now()}`;
+
+  // Copia para a área de transferência (com fallback)
+  const copied = await copyToClipboard(outerHTML);
+
+  // Desativa imediatamente para evitar overlay/borda na captura.
+  setActive(false);
+  chrome.runtime.sendMessage({ type: "SELECTION_DEACTIVATED" });
+
+  // Aguarda repaint para garantir que o overlay saiu da composição.
+  await waitForNextPaint();
+
   // Captura imagem do elemento (TAMANHO COMPLETO) via CDP.
   let imageResult = null;
   try {
-    // Remove highlight antes de capturar, para o overlay não aparecer no PNG.
-    clearHighlight();
-
-    const r = el.getBoundingClientRect();
-
-    const pageRect = {
-      x: r.left + window.scrollX,
-      y: r.top + window.scrollY,
-      width: r.width,
-      height: r.height
-    };
-
-    // Nome sugerido do arquivo
-    const baseName = `${tag}${el.id ? "-" + el.id : ""}-${Date.now()}`;
-
     imageResult = await chrome.runtime.sendMessage({
       type: "CAPTURE_ELEMENT_CDP",
       pageRect,
@@ -146,12 +149,6 @@ async function onClickCapture(ev) {
       element: el
     }
   );
-
-  // Desativa automaticamente após capturar
-  setActive(false);
-
-  // Informa ao background para ele sincronizar estado e remover o CSS
-  chrome.runtime.sendMessage({ type: "SELECTION_DEACTIVATED" });
 }
 
 function onKeyDownCapture(ev) {
@@ -226,6 +223,14 @@ function clearHighlight() {
   if (overlayEl) {
     overlayEl.style.display = "none";
   }
+}
+
+function waitForNextPaint() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(resolve);
+    });
+  });
 }
 
 async function copyToClipboard(text) {

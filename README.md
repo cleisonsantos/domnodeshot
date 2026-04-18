@@ -1,73 +1,78 @@
-# DOM Node Selector — Extensão Chrome (Manifest V3)
+# DOMnodeshot — Extensão Chrome (Manifest V3)
 
-Extensão para Google Chrome (Manifest V3) que replica seletor de elementos do DevTools (estilo `Ctrl+Shift+C`), com captura de imagem do elemento.
+`DOMnodeshot` ativa modo de seleção visual de elementos na página e captura imagem do elemento selecionado.
 
-## O que faz
+Descrição da extensão (manifest):
 
-- Ativa/desativa modo de seleção visual via atalho.
-- Destaca elemento sob cursor com overlay fixo (sem quebrar layout).
-- Hit-test mais estável: amostra pontos ao redor do cursor para melhorar precisão.
-- Ao clicar em elemento:
-  - baixa PNG do elemento em tamanho completo (via CDP/debugger);
+> Seleciona elementos, captura PNG completo, baixa imagem e copia para clipboard (Ctrl/Shift copia outerHTML).
+
+---
+
+## Recursos
+
+- Atalho para ligar/desligar modo de seleção.
+- Overlay de highlight sem alterar layout.
+- Hit-test com amostragem ao redor do cursor (seleção mais estável).
+- Clique no elemento:
+  - captura PNG do elemento;
+  - baixa arquivo PNG;
   - copia **imagem** para clipboard por padrão.
-- Com modificador no clique (`Ctrl` ou `Shift`): copia **`outerHTML`** em vez da imagem.
-- Desativa modo de seleção automaticamente após captura.
+- Clique com `Ctrl` ou `Shift`: copia **`outerHTML`** em vez da imagem.
+- `Esc`/`Escape`: cancela seleção ativa.
+- Navegação de seleção por teclado:
+  - `ArrowUp`: pai
+  - `ArrowDown`: primeiro filho
 
-> Observação: DevTools tem privilégios especiais. Aqui comportamento vem de Content Script + CSS + APIs de extensão.
+---
+
+## Captura: CDP + fallback
+
+Fluxo atual de captura:
+
+1. Tenta captura completa via CDP (`chrome.debugger` + `Page.captureScreenshot`).
+2. Se CDP falhar (site/restrição/attach), usa fallback `chrome.tabs.captureVisibleTab`.
+3. No fallback, imagem é recortada para retângulo do elemento visível no viewport.
+
+Resultado:
+- com CDP: melhor chance de conteúdo completo fora da área visível;
+- fallback: funciona sem CDP, mas limitado ao que está visível.
 
 ---
 
 ## Estrutura
 
 - `manifest.json`
-  - Manifest V3, permissões (`scripting`, `downloads`, `debugger`, `clipboardWrite`, etc.), comando/atalho.
+  - MV3, comando de atalho, permissões e metadados da extensão.
 - `background.js`
-  - Service Worker: toggle por aba, injeção de script/CSS, captura via CDP, download do PNG.
+  - service worker, toggle por aba, captura CDP, fallback `captureVisibleTab`, download.
 - `content.js`
-  - Seleção, overlay, clique, decisão de modo de cópia (imagem vs HTML), integração com clipboard.
+  - seleção, overlay, clique, cópia imagem/HTML, cancelamento por `Esc`.
 - `styles.css`
-  - Estilo do highlight/overlay/cursor.
+  - estilos de cursor/overlay.
+- `icons/`
+  - ícones 16/32/48/128.
 
 ---
 
-## Instalação (modo desenvolvedor)
+## Instalação (modo dev)
 
 1. Abrir `chrome://extensions`
 2. Ativar **Modo do desenvolvedor**
 3. Clicar **Carregar sem compactação**
-4. Selecionar pasta do projeto (`manifest.json`)
-5. Abrir site qualquer e usar atalho
+4. Selecionar pasta do projeto
 
 ---
 
-## Atalho
+## Atalhos
 
-- **Windows/Linux:** `Ctrl + Shift + X`
-- **macOS:** `Command + Shift + X`
-
-Configuração em `manifest.json` (`commands.toggle-selector`).
-
-Se conflito: `chrome://extensions/shortcuts`.
+- Ativar/desativar modo seleção:
+  - Windows/Linux: `Ctrl+Shift+X`
+  - macOS: `Command+Shift+X`
+- Cancelar seleção ativa: `Esc` / `Escape`
 
 ---
 
-## Fluxo de captura
-
-1. Usuário ativa modo de seleção.
-2. `content.js` calcula melhor alvo por `elementsFromPoint` em múltiplos offsets.
-3. Clique interceptado (`preventDefault`, `stopPropagation`, `stopImmediatePropagation`).
-4. `content.js` desativa overlay, espera repaint, pede captura ao `background.js`.
-5. `background.js` usa `chrome.debugger` + `Page.captureScreenshot`:
-   - captura em faixas quando altura grande;
-   - costura faixas (`OffscreenCanvas`) para PNG final.
-6. PNG salvo via `chrome.downloads.download`.
-7. Clipboard:
-   - padrão: tenta copiar **imagem** (`navigator.clipboard.write` + `ClipboardItem`);
-   - com `Ctrl`/`Shift`: copia **HTML** (`navigator.clipboard.writeText` com fallback `execCommand('copy')`).
-
----
-
-## Permissões usadas
+## Permissões
 
 - `scripting`
 - `activeTab`
@@ -80,29 +85,23 @@ Se conflito: `chrome://extensions/shortcuts`.
 
 ## Limitações
 
-- Não injeta em páginas restritas (`chrome://*`, páginas internas, etc.).
-- Em alguns cenários CDP/debugger pode falhar.
-- Clipboard de imagem depende de suporte de API/permissões/contexto.
-- Shadow DOM complexo pode exigir ajustes extras.
+- Não injeta em páginas restritas (`chrome://*`, internas).
+- CDP pode falhar em alguns contextos; fallback cobre parte do cenário.
+- Clipboard de imagem depende de suporte de API/contexto.
 
 ---
 
-## Debug
+## Publicação (CWS)
 
-- Logs da página: DevTools da aba (`console`).
-- Logs do worker: `chrome://extensions` → extensão → **Service worker** → **Inspect**.
+Materiais prontos:
+
+- `docs/cws/STORE_LISTING.pt-BR.md`
+- `docs/cws/PERMISSIONS_JUSTIFICATION.pt-BR.md`
+- `docs/cws/PUBLISH_CHECKLIST.pt-BR.md`
+- `PRIVACY_POLICY.md`
 
 ---
-
-## Publicação na Chrome Web Store
-
-Materiais prontos no repositório:
-
-- `docs/cws/STORE_LISTING.pt-BR.md` — resumo curto + descrição completa
-- `docs/cws/PERMISSIONS_JUSTIFICATION.pt-BR.md` — justificativa de permissões
-- `docs/cws/PUBLISH_CHECKLIST.pt-BR.md` — checklist final de submissão
-- `PRIVACY_POLICY.md` — política de privacidade
 
 ## Licença
 
-Defina licença desejada (MIT, Apache-2.0, etc.).
+Definir (MIT, Apache-2.0, etc.).

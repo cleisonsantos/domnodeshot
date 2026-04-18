@@ -3,7 +3,7 @@
   "name": "DOM Node Selector (OuterHTML Copier)",
   "version": "1.0.0",
   "description": "Ativa um modo de seleção visual (estilo DevTools) e copia o outerHTML do elemento clicado.",
-  "permissions": ["scripting", "activeTab", "tabs", "downloads", "debugger"],
+  "permissions": ["scripting", "activeTab", "tabs", "downloads", "debugger", "clipboardWrite"],
   "background": {
     "service_worker": "background.js"
   },

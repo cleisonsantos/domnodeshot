@@ -2,8 +2,8 @@
 //
 // Executa no contexto da página (content script) e implementa:
 // - seleção visual precisa com overlay fixo
-// - captura do outerHTML no clique
-// - cópia para clipboard
+// - captura da imagem do elemento no clique
+// - cópia para clipboard (imagem por padrão, HTML com Ctrl/Shift)
 // - desativação automática após captura
 //
 // Melhorias de granularidade:
@@ -164,6 +164,8 @@ async function onClickCapture(ev) {
   const el = currentEl || clickedEl;
   if (!(el instanceof Element)) return;
 
+  const copyHtmlMode = ev.ctrlKey || ev.shiftKey;
+
   const outerHTML = el.outerHTML;
   const tag = el.tagName.toLowerCase();
   const id = el.id ? `#${el.id}` : "";
@@ -181,9 +183,6 @@ async function onClickCapture(ev) {
   // Nome sugerido do arquivo
   const baseName = `${tag}${el.id ? "-" + el.id : ""}-${Date.now()}`;
 
-  // Copia para a área de transferência (com fallback)
-  const copied = await copyToClipboard(outerHTML);
-
   // Desativa imediatamente para evitar overlay/borda na captura.
   setActive(false);
   chrome.runtime.sendMessage({ type: "SELECTION_DEACTIVATED" });
@@ -197,16 +196,36 @@ async function onClickCapture(ev) {
     imageResult = await chrome.runtime.sendMessage({
       type: "CAPTURE_ELEMENT_CDP",
       pageRect,
-      suggestedName: baseName
+      suggestedName: baseName,
+      includeDataUrl: !copyHtmlMode
     });
   } catch (err) {
     imageResult = { ok: false, error: String(err) };
+  }
+
+  let copied = false;
+  let copiedType = "none";
+
+  if (copyHtmlMode) {
+    copied = await copyToClipboard(outerHTML);
+    copiedType = "html";
+  } else if (imageResult?.ok && imageResult?.dataUrl) {
+    copied = await copyImageDataUrlToClipboard(imageResult.dataUrl);
+    copiedType = copied ? "image" : "none";
+
+    // Fallback: se imagem falhar, tenta HTML.
+    if (!copied) {
+      copied = await copyToClipboard(outerHTML);
+      copiedType = copied ? "html-fallback" : "none";
+    }
   }
 
   console.log(
     `[DOM Selector] Capturado: ${tag}${id}${classes}`,
     {
       copied,
+      copiedType,
+      copyHtmlMode,
       imageResult,
       outerHTMLLength: outerHTML.length,
       element: el
@@ -294,6 +313,26 @@ function waitForNextPaint() {
       requestAnimationFrame(resolve);
     });
   });
+}
+
+async function copyImageDataUrlToClipboard(dataUrl) {
+  try {
+    if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+      return false;
+    }
+
+    const resp = await fetch(dataUrl);
+    const blob = await resp.blob();
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        [blob.type || "image/png"]: blob
+      })
+    ]);
+
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function copyToClipboard(text) {

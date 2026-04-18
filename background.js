@@ -65,14 +65,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       const pageRect = msg?.pageRect;
       const suggestedName = msg?.suggestedName;
+      const includeDataUrl = !!msg?.includeDataUrl;
 
-      const downloadId = await captureAndDownloadElementViaCDP({
+      const result = await captureAndDownloadElementViaCDP({
         tabId,
         pageRect,
-        suggestedName
+        suggestedName,
+        includeDataUrl
       });
 
-      return { ok: true, downloadId };
+      return { ok: true, ...result };
     })()
       .then(sendResponse)
       .catch((err) => sendResponse({ ok: false, error: String(err) }));
@@ -105,7 +107,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
  * Captura o elemento completo usando CDP (chrome.debugger).
  * Requer permissão "debugger" no manifest.
  */
-async function captureAndDownloadElementViaCDP({ tabId, pageRect, suggestedName }) {
+async function captureAndDownloadElementViaCDP({ tabId, pageRect, suggestedName, includeDataUrl = false }) {
   if (!pageRect || typeof pageRect.x !== "number") {
     throw new Error("pageRect inválido enviado pelo content script.");
   }
@@ -162,7 +164,10 @@ async function captureAndDownloadElementViaCDP({ tabId, pageRect, suggestedName 
     saveAs: true
   });
 
-  return downloadId;
+  return {
+    downloadId,
+    ...(includeDataUrl ? { dataUrl } : null)
+  };
 }
 
 async function stitchPngBase64StripesToDataUrl(stripes, width, height) {

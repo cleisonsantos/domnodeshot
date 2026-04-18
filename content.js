@@ -20,6 +20,20 @@ const NO_SCROLL_CLASS = "domnodeshot-no-scroll";
 const OVERLAY_CLASS = "domnodeshot-overlay";
 const OVERLAY_LABEL_CLASS = "domnodeshot-overlay-label";
 
+// Aumenta "sensibilidade" de hit-test: amostra pontos próximos ao cursor.
+const HIT_TEST_RADIUS = 10;
+const HIT_TEST_OFFSETS = [
+  [0, 0],
+  [-HIT_TEST_RADIUS, 0],
+  [HIT_TEST_RADIUS, 0],
+  [0, -HIT_TEST_RADIUS],
+  [0, HIT_TEST_RADIUS],
+  [-HIT_TEST_RADIUS, -HIT_TEST_RADIUS],
+  [HIT_TEST_RADIUS, -HIT_TEST_RADIUS],
+  [-HIT_TEST_RADIUS, HIT_TEST_RADIUS],
+  [HIT_TEST_RADIUS, HIT_TEST_RADIUS]
+];
+
 function setActive(next) {
   if (active === next) return;
   active = next;
@@ -80,13 +94,62 @@ function onViewportChange() {
 }
 
 function getSelectableElementAt(x, y) {
-  const stack = document.elementsFromPoint(x, y);
-  for (const el of stack) {
-    if (!(el instanceof Element)) continue;
-    if (el === overlayEl || overlayEl?.contains(el)) continue;
-    return el;
+  const candidates = new Map();
+
+  for (const [dx, dy] of HIT_TEST_OFFSETS) {
+    const sx = x + dx;
+    const sy = y + dy;
+
+    if (sx < 0 || sy < 0 || sx > window.innerWidth - 1 || sy > window.innerHeight - 1) {
+      continue;
+    }
+
+    const stack = document.elementsFromPoint(sx, sy);
+    for (let depth = 0; depth < stack.length; depth++) {
+      const el = stack[depth];
+      if (!(el instanceof Element)) continue;
+      if (el === overlayEl || overlayEl?.contains(el)) continue;
+
+      const dist = Math.hypot(dx, dy);
+      const prev = candidates.get(el);
+
+      if (!prev) {
+        candidates.set(el, {
+          depth,
+          minDist: dist,
+          hits: 1
+        });
+      } else {
+        prev.depth = Math.min(prev.depth, depth);
+        prev.minDist = Math.min(prev.minDist, dist);
+        prev.hits += 1;
+      }
+    }
   }
-  return null;
+
+  if (!candidates.size) return null;
+
+  let bestEl = null;
+  let bestMeta = null;
+
+  for (const [el, meta] of candidates.entries()) {
+    if (!bestEl) {
+      bestEl = el;
+      bestMeta = meta;
+      continue;
+    }
+
+    if (
+      meta.depth < bestMeta.depth ||
+      (meta.depth === bestMeta.depth && meta.minDist < bestMeta.minDist) ||
+      (meta.depth === bestMeta.depth && meta.minDist === bestMeta.minDist && meta.hits > bestMeta.hits)
+    ) {
+      bestEl = el;
+      bestMeta = meta;
+    }
+  }
+
+  return bestEl;
 }
 
 async function onClickCapture(ev) {

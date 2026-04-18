@@ -179,6 +179,12 @@ async function onClickCapture(ev) {
     width: r.width,
     height: r.height
   };
+  const viewportRect = {
+    x: r.left,
+    y: r.top,
+    width: r.width,
+    height: r.height
+  };
 
   // Nome sugerido do arquivo
   const baseName = `${tag}${el.id ? "-" + el.id : ""}-${Date.now()}`;
@@ -196,6 +202,8 @@ async function onClickCapture(ev) {
     imageResult = await chrome.runtime.sendMessage({
       type: "CAPTURE_ELEMENT_CDP",
       pageRect,
+      viewportRect,
+      devicePixelRatio: window.devicePixelRatio || 1,
       suggestedName: baseName,
       includeDataUrl: !copyHtmlMode
     });

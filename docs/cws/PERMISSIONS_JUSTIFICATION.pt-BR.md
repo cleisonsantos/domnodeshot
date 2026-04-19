@@ -20,6 +20,11 @@ Uso: injetar content script e CSS na aba ativa durante modo de seleção, contro
 
 Motivo técnico: highlight, overlay, interceptação de clique e coordenação com service worker dependem dessas permissões.
 
+## host_permissions (`<all_urls>`)
+Uso: permitir a atuação em páginas e iframes compatíveis, inclusive quando a página principal e o iframe estão em origens diferentes.
+
+Motivo técnico: a extensão precisa alcançar elementos também dentro de iframes para seleção e captura consistentes. Sem host permissions, o conteúdo dentro de frames cross-origin pode ficar inacessível.
+
 ---
 
 ## Declaração de dados

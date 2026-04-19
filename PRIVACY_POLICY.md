@@ -1,8 +1,8 @@
 # Política de Privacidade — DOMnodeshot
 
-Última atualização: 2026-04-18
+Última atualização: 2026-04-19
 
-DOMnodeshot foi projetada para funcionar localmente no navegador.
+DOMnodeshot foi projetada para funcionar localmente no navegador, incluindo interação com elementos em iframes quando suportado pela página e pelo navegador.
 
 ## Coleta de dados
 DOMnodeshot **não coleta** dados pessoais.
@@ -21,9 +21,10 @@ A seleção de elementos, captura de imagem, geração de arquivo e cópia para 
 - `downloads`: salvar PNG capturado.
 - `clipboardWrite`: copiar imagem ou HTML para clipboard.
 - `scripting`, `activeTab`, `tabs`: injeção e controle do modo de seleção na aba ativa.
+- `host_permissions` (`<all_urls>`): permitir atuação em páginas e iframes compatíveis para seleção/captura.
 
 ## Segurança
-Extensão não realiza transmissão de conteúdo de páginas para backend externo.
+Extensão não realiza transmissão de conteúdo de páginas para backend externo. O processamento de seleção, captura e cópia ocorre localmente no navegador do usuário.
 
 ## Contato
 css.cleison@outlook.com

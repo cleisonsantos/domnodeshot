@@ -1,6 +1,6 @@
 # DOMnodeshot — Extensão Chrome (Manifest V3)
 
-`DOMnodeshot` ativa modo de seleção visual de elementos na página e captura imagem do elemento selecionado.
+`DOMnodeshot` ativa modo de seleção visual de elementos na página e captura imagem do elemento selecionado, inclusive em cenários com iframes.
 
 Descrição da extensão (manifest):
 
@@ -17,6 +17,7 @@ Descrição da extensão (manifest):
   - captura PNG do elemento;
   - baixa arquivo PNG;
   - copia **imagem** para clipboard por padrão.
+- Suporte a elementos dentro de iframes, incluindo muitos casos cross-origin, quando permitido pelo navegador.
 - Clique com `Ctrl` ou `Shift`: copia **`outerHTML`** em vez da imagem.
 - `Esc`/`Escape`: cancela seleção ativa.
 - Navegação de seleção por teclado:
@@ -80,6 +81,15 @@ Resultado:
 - `downloads`
 - `debugger`
 - `clipboardWrite`
+- `host_permissions` (`<all_urls>`) para injeção em páginas e iframes compatíveis
+
+### Justificativa resumida
+
+- `debugger`: captura screenshot completa do elemento fora do viewport.
+- `downloads`: salva o PNG capturado.
+- `clipboardWrite`: copia imagem ou HTML para a área de transferência.
+- `scripting` / `activeTab` / `tabs`: injeta o content script, controla o modo de seleção e envia mensagens.
+- `host_permissions`: permite atuar também em iframes e páginas compatíveis além do documento principal.
 
 ---
 

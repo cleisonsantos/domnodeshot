@@ -14,6 +14,8 @@
 let active = false;
 let currentEl = null;
 let overlayEl = null;
+let pendingFrameOffsetRequests = new Map();
+let frameOffsetRoutes = new Map();
 
 const CURSOR_CLASS = "domnodeshot-cursor";
 const NO_SCROLL_CLASS = "domnodeshot-no-scroll";
@@ -171,19 +173,25 @@ async function onClickCapture(ev) {
   const id = el.id ? `#${el.id}` : "";
   const classes = el.classList?.length ? "." + [...el.classList].join(".") : "";
 
-  // Calcula retângulo antes de desativar o modo (evita perder referência de alvo).
+  // Calcula retângulo absoluto no viewport da janela principal.
   const r = el.getBoundingClientRect();
-  const pageRect = {
-    x: r.left + window.scrollX,
-    y: r.top + window.scrollY,
-    width: r.width,
-    height: r.height
-  };
-  const viewportRect = {
+  const absoluteRect = await getAbsoluteViewportRect({
     x: r.left,
     y: r.top,
     width: r.width,
     height: r.height
+  });
+  const pageRect = {
+    x: absoluteRect.x + absoluteRect.topScrollX,
+    y: absoluteRect.y + absoluteRect.topScrollY,
+    width: absoluteRect.width,
+    height: absoluteRect.height
+  };
+  const viewportRect = {
+    x: absoluteRect.x,
+    y: absoluteRect.y,
+    width: absoluteRect.width,
+    height: absoluteRect.height
   };
 
   // Nome sugerido do arquivo
@@ -379,6 +387,132 @@ async function copyToClipboard(text) {
     return false;
   }
 }
+
+function createFrameRequestId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function getAllFrameElements() {
+  return [...document.querySelectorAll("iframe, frame")];
+}
+
+function findChildFrameElement(sourceWindow) {
+  for (const frameEl of getAllFrameElements()) {
+    try {
+      if (frameEl.contentWindow === sourceWindow) {
+        return frameEl;
+      }
+    } catch {
+      // ignora iframe inacessível; comparação pode falhar em alguns casos
+    }
+  }
+
+  return null;
+}
+
+function forwardFrameOffsetRequestUpward(requestId, rect) {
+  if (window.parent === window) {
+    return;
+  }
+
+  window.parent.postMessage(
+    {
+      source: "domnodeshot-extension",
+      type: "DOMNODESHOT_FRAME_OFFSET_REQUEST",
+      requestId,
+      rect
+    },
+    "*"
+  );
+}
+
+async function getAbsoluteViewportRect(rect) {
+  if (window.parent === window) {
+    return {
+      ...rect,
+      topScrollX: window.scrollX,
+      topScrollY: window.scrollY
+    };
+  }
+
+  const requestId = createFrameRequestId();
+
+  return await new Promise((resolve) => {
+    const timeoutId = setTimeout(() => {
+      pendingFrameOffsetRequests.delete(requestId);
+      resolve({
+        ...rect,
+        topScrollX: 0,
+        topScrollY: 0
+      });
+    }, 1500);
+
+    pendingFrameOffsetRequests.set(requestId, {
+      resolve(payload) {
+        clearTimeout(timeoutId);
+        resolve(payload);
+      }
+    });
+
+    forwardFrameOffsetRequestUpward(requestId, rect);
+  });
+}
+
+window.addEventListener("message", (event) => {
+  const msg = event.data;
+  if (!msg || msg.source !== "domnodeshot-extension") return;
+
+  if (msg.type === "DOMNODESHOT_FRAME_OFFSET_REQUEST") {
+    const frameEl = findChildFrameElement(event.source);
+    if (!frameEl) return;
+
+    const frameRect = frameEl.getBoundingClientRect();
+    const nextRect = {
+      x: msg.rect.x + frameRect.left,
+      y: msg.rect.y + frameRect.top,
+      width: msg.rect.width,
+      height: msg.rect.height
+    };
+
+    if (window.parent === window) {
+      event.source?.postMessage(
+        {
+          source: "domnodeshot-extension",
+          type: "DOMNODESHOT_FRAME_OFFSET_RESPONSE",
+          requestId: msg.requestId,
+          rect: nextRect,
+          topScrollX: window.scrollX,
+          topScrollY: window.scrollY
+        },
+        "*"
+      );
+      return;
+    }
+
+    frameOffsetRoutes.set(msg.requestId, event.source);
+    forwardFrameOffsetRequestUpward(msg.requestId, nextRect);
+    return;
+  }
+
+  if (msg.type === "DOMNODESHOT_FRAME_OFFSET_RESPONSE") {
+    const pending = pendingFrameOffsetRequests.get(msg.requestId);
+    if (pending) {
+      pendingFrameOffsetRequests.delete(msg.requestId);
+      pending.resolve({
+        ...msg.rect,
+        topScrollX: msg.topScrollX || 0,
+        topScrollY: msg.topScrollY || 0
+      });
+      return;
+    }
+
+    const routeTarget = frameOffsetRoutes.get(msg.requestId);
+    if (!routeTarget) return;
+
+    frameOffsetRoutes.delete(msg.requestId);
+    routeTarget?.postMessage(msg, "*");
+  }
+});
 
 // Listener de mensagens do background
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {

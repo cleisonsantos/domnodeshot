@@ -31,13 +31,13 @@ chrome.commands.onCommand.addListener(async (command) => {
     // Aplica/remove CSS conforme estado.
     if (nextActive) {
       await chrome.scripting.insertCSS({
-        target: { tabId },
+        target: { tabId, allFrames: true },
         files: ["styles.css"]
       });
     } else {
       // removeCSS pode falhar em alguns cenários; tratamos no catch.
       await chrome.scripting.removeCSS({
-        target: { tabId },
+        target: { tabId, allFrames: true },
         files: ["styles.css"]
       });
     }
@@ -98,7 +98,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
     chrome.scripting
       .removeCSS({
-        target: { tabId },
+        target: { tabId, allFrames: true },
         files: ["styles.css"]
       })
       .catch(() => {
@@ -361,7 +361,7 @@ async function ensureInjected(tabId) {
   if (hasReceiver) return;
 
   await chrome.scripting.executeScript({
-    target: { tabId },
+    target: { tabId, allFrames: true },
     files: ["content.js"]
   });
 

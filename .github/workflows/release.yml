@@ -53,13 +53,16 @@ jobs:
           files: ${{ env.PACKAGE_PATH }}
 
       - name: Publish to Chrome Web Store
-        if: ${{ secrets.CHROME_EXTENSION_ID != '' && secrets.CHROME_CLIENT_ID != '' && secrets.CHROME_CLIENT_SECRET != '' && secrets.CHROME_REFRESH_TOKEN != '' }}
         env:
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
           CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
           CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
           CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
         run: |
+          if [ -z "$CHROME_EXTENSION_ID" ] || [ -z "$CHROME_CLIENT_ID" ] || [ -z "$CHROME_CLIENT_SECRET" ] || [ -z "$CHROME_REFRESH_TOKEN" ]; then
+            echo "Chrome Web Store publish skipped. Configure repository secrets first."
+            exit 0
+          fi
           ACCESS_TOKEN=$(curl -s https://oauth2.googleapis.com/token \
             -d client_id="$CHROME_CLIENT_ID" \
             -d client_secret="$CHROME_CLIENT_SECRET" \
@@ -97,6 +100,3 @@ jobs:
             exit 1
           fi
 
-      - name: Explain skipped publish
-        if: ${{ !(secrets.CHROME_EXTENSION_ID != '' && secrets.CHROME_CLIENT_ID != '' && secrets.CHROME_CLIENT_SECRET != '' && secrets.CHROME_REFRESH_TOKEN != '') }}
-        run: echo "Chrome Web Store publish skipped. Configure repository secrets first."

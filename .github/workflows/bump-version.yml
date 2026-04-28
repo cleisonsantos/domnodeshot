@@ -1,0 +1,75 @@
+name: Bump Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Tipo de bump semântico
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump manifest version
+        id: bump
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          CURRENT=$(jq -r '.version' manifest.json)
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+          case "$BUMP" in
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            *)
+              echo "Unsupported bump type: $BUMP"
+              exit 1
+              ;;
+          esac
+
+          NEXT="$MAJOR.$MINOR.$PATCH"
+          jq --arg version "$NEXT" '.version = $version' manifest.json > manifest.json.tmp
+          mv manifest.json.tmp manifest.json
+
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and tag
+        env:
+          NEXT: ${{ steps.bump.outputs.next }}
+        run: |
+          git add manifest.json
+          git commit -m "Bump version to $NEXT"
+          git tag "v$NEXT"
+          git push origin HEAD
+          git push origin "v$NEXT"

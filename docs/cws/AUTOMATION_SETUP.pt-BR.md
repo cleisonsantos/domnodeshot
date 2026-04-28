@@ -16,15 +16,17 @@ Recomendado para este projeto:
 
 ---
 
-## Workflow criado
+## Workflows criados
 
-Arquivo:
+Arquivos:
 
 - `.github/workflows/release.yml`
+- `.github/workflows/bump-version.yml`
 
-Trigger:
+Triggers:
 
 - `push` em tags `v*`
+- `workflow_dispatch` para bump manual de versão (`patch` / `minor` / `major`)
 
 ---
 
@@ -44,6 +46,12 @@ Sem esses secrets:
 ---
 
 ## Como obter credenciais Google / Chrome Web Store API
+
+Resumo recomendado:
+
+- `CHROME_EXTENSION_ID`: vem do painel da extensão
+- `CHROME_CLIENT_ID` e `CHROME_CLIENT_SECRET`: vêm de OAuth Client no Google Cloud
+- `CHROME_REFRESH_TOKEN`: vem de fluxo OAuth autorizado pela conta dona da extensão
 
 ## 1) Descobrir `CHROME_EXTENSION_ID`
 
@@ -107,7 +115,19 @@ Fluxo geral:
 
 ## Uso diário
 
-### Release sem publicar store
+### Opção 1: bump manual pela interface do GitHub
+
+1. abrir **Actions**;
+2. rodar workflow **Bump Version**;
+3. escolher `patch`, `minor` ou `major`.
+
+Resultado:
+- `manifest.json` atualizado;
+- commit automático;
+- tag `vX.Y.Z` criada;
+- workflow de release dispara sozinho.
+
+### Opção 2: release sem publicar store
 
 Se secrets ainda não existirem:
 
@@ -125,7 +145,7 @@ Resultado:
 - notas automáticas geradas;
 - publish CWS pulado.
 
-### Release + publish automático
+### Opção 3: release + publish automático
 
 Depois de configurar secrets:
 

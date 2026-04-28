@@ -1,0 +1,102 @@
+name: Release Extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      PACKAGE_NAME: domnodeshot
+      PACKAGE_DIR: dist
+      PACKAGE_PATH: dist/domnodeshot.zip
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag matches manifest version
+        run: |
+          VERSION=$(jq -r '.version' manifest.json)
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$VERSION" != "$TAG_VERSION" ]; then
+            echo "Tag version ($TAG_VERSION) differs from manifest version ($VERSION)"
+            exit 1
+          fi
+
+      - name: Build extension zip
+        run: |
+          mkdir -p "$PACKAGE_DIR"
+          zip -r "$PACKAGE_PATH" \
+            manifest.json \
+            background.js \
+            content.js \
+            styles.css \
+            icons
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: domnodeshot-${{ github.ref_name }}
+          path: ${{ env.PACKAGE_PATH }}
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: ${{ env.PACKAGE_PATH }}
+
+      - name: Publish to Chrome Web Store
+        if: ${{ secrets.CHROME_EXTENSION_ID != '' && secrets.CHROME_CLIENT_ID != '' && secrets.CHROME_CLIENT_SECRET != '' && secrets.CHROME_REFRESH_TOKEN != '' }}
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        run: |
+          ACCESS_TOKEN=$(curl -s https://oauth2.googleapis.com/token \
+            -d client_id="$CHROME_CLIENT_ID" \
+            -d client_secret="$CHROME_CLIENT_SECRET" \
+            -d refresh_token="$CHROME_REFRESH_TOKEN" \
+            -d grant_type=refresh_token | jq -r '.access_token')
+
+          if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" = "null" ]; then
+            echo "Failed to obtain OAuth access token"
+            exit 1
+          fi
+
+          UPLOAD_RESPONSE=$(curl -s -X PUT \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "x-goog-api-version: 2" \
+            -T "$PACKAGE_PATH" \
+            "https://www.googleapis.com/upload/chromewebstore/v1.1/items/$CHROME_EXTENSION_ID")
+
+          echo "$UPLOAD_RESPONSE" | jq .
+          UPLOAD_STATE=$(echo "$UPLOAD_RESPONSE" | jq -r '.uploadState // empty')
+          if [ "$UPLOAD_STATE" != "SUCCESS" ]; then
+            echo "Chrome Web Store upload failed"
+            exit 1
+          fi
+
+          PUBLISH_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "x-goog-api-version: 2" \
+            -H "Content-Length: 0" \
+            "https://www.googleapis.com/chromewebstore/v1.1/items/$CHROME_EXTENSION_ID/publish?publishTarget=default")
+
+          echo "$PUBLISH_RESPONSE" | jq .
+          PUBLISH_STATUS=$(echo "$PUBLISH_RESPONSE" | jq -r '.status[0] // empty')
+          if [ "$PUBLISH_STATUS" != "OK" ]; then
+            echo "Chrome Web Store publish failed"
+            exit 1
+          fi
+
+      - name: Explain skipped publish
+        if: ${{ !(secrets.CHROME_EXTENSION_ID != '' && secrets.CHROME_CLIENT_ID != '' && secrets.CHROME_CLIENT_SECRET != '' && secrets.CHROME_REFRESH_TOKEN != '') }}
+        run: echo "Chrome Web Store publish skipped. Configure repository secrets first."

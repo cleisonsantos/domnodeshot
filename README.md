@@ -115,6 +115,7 @@ Materiais prontos:
 - `docs/cws/STORE_LISTING.pt-BR.md`
 - `docs/cws/PERMISSIONS_JUSTIFICATION.pt-BR.md`
 - `docs/cws/PUBLISH_CHECKLIST.pt-BR.md`
+- `docs/cws/AUTOMATION_SETUP.pt-BR.md`
 - `PRIVACY_POLICY.md`
 
 ---

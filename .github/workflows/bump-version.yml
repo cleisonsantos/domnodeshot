@@ -68,8 +68,9 @@ jobs:
         env:
           NEXT: ${{ steps.bump.outputs.next }}
         run: |
+          BRANCH=$(git branch --show-current)
           git add manifest.json
           git commit -m "Bump version to $NEXT"
           git tag "v$NEXT"
-          git push origin HEAD
+          git push origin "$BRANCH"
           git push origin "v$NEXT"

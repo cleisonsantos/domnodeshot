@@ -157,7 +157,6 @@ function getSelectableElementAt(x, y) {
 async function onClickCapture(ev) {
   if (!active) return;
 
-  // Intercepta totalmente o clique
   ev.preventDefault();
   ev.stopPropagation();
   ev.stopImmediatePropagation();
@@ -166,14 +165,20 @@ async function onClickCapture(ev) {
   const el = currentEl || clickedEl;
   if (!(el instanceof Element)) return;
 
-  const copyHtmlMode = ev.ctrlKey || ev.shiftKey;
+  const accelKey = ev.ctrlKey || ev.metaKey;
 
+  await performCaptureAction(el, {
+    doDownload: accelKey,
+    includeHtmlInClipboard: !!(accelKey && ev.shiftKey)
+  });
+}
+
+async function performCaptureAction(el, { doDownload = false, includeHtmlInClipboard = false } = {}) {
   const outerHTML = el.outerHTML;
   const tag = el.tagName.toLowerCase();
   const id = el.id ? `#${el.id}` : "";
   const classes = el.classList?.length ? "." + [...el.classList].join(".") : "";
 
-  // Calcula retângulo absoluto no viewport da janela principal.
   const r = el.getBoundingClientRect();
   const absoluteRect = await getAbsoluteViewportRect({
     x: r.left,
@@ -194,17 +199,12 @@ async function onClickCapture(ev) {
     height: absoluteRect.height
   };
 
-  // Nome sugerido do arquivo
   const baseName = `${tag}${el.id ? "-" + el.id : ""}-${Date.now()}`;
 
-  // Desativa imediatamente para evitar overlay/borda na captura.
   setActive(false);
   chrome.runtime.sendMessage({ type: "SELECTION_DEACTIVATED" });
-
-  // Aguarda repaint para garantir que o overlay saiu da composição.
   await waitForNextPaint();
 
-  // Captura imagem do elemento (TAMANHO COMPLETO) via CDP.
   let imageResult = null;
   try {
     imageResult = await chrome.runtime.sendMessage({
@@ -213,7 +213,8 @@ async function onClickCapture(ev) {
       viewportRect,
       devicePixelRatio: window.devicePixelRatio || 1,
       suggestedName: baseName,
-      includeDataUrl: !copyHtmlMode
+      includeDataUrl: true,
+      doDownload
     });
   } catch (err) {
     imageResult = { ok: false, error: String(err) };
@@ -222,18 +223,17 @@ async function onClickCapture(ev) {
   let copied = false;
   let copiedType = "none";
 
-  if (copyHtmlMode) {
-    copied = await copyToClipboard(outerHTML);
-    copiedType = "html";
-  } else if (imageResult?.ok && imageResult?.dataUrl) {
-    copied = await copyImageDataUrlToClipboard(imageResult.dataUrl);
-    copiedType = copied ? "image" : "none";
+  if (imageResult?.ok && imageResult?.dataUrl) {
+    copied = includeHtmlInClipboard
+      ? await copyImageAndHtmlToClipboard(imageResult.dataUrl, outerHTML)
+      : await copyImageDataUrlToClipboard(imageResult.dataUrl);
 
-    // Fallback: se imagem falhar, tenta HTML.
-    if (!copied) {
-      copied = await copyToClipboard(outerHTML);
-      copiedType = copied ? "html-fallback" : "none";
-    }
+    copiedType = copied ? (includeHtmlInClipboard ? "image+html" : "image") : "none";
+  }
+
+  if (!copied) {
+    copied = await copyToClipboard(outerHTML);
+    copiedType = copied ? "html-fallback" : "none";
   }
 
   console.log(
@@ -241,7 +241,8 @@ async function onClickCapture(ev) {
     {
       copied,
       copiedType,
-      copyHtmlMode,
+      doDownload,
+      includeHtmlInClipboard,
       imageResult,
       outerHTMLLength: outerHTML.length,
       element: el
@@ -249,7 +250,7 @@ async function onClickCapture(ev) {
   );
 }
 
-function onKeyDownCapture(ev) {
+async function onKeyDownCapture(ev) {
   if (!active) return;
 
   if (ev.key === "Escape" || ev.key === "Esc") {
@@ -263,6 +264,20 @@ function onKeyDownCapture(ev) {
   }
 
   if (!currentEl) return;
+
+  if (ev.key === "Enter") {
+    ev.preventDefault();
+    ev.stopPropagation();
+    ev.stopImmediatePropagation();
+
+    const accelKey = ev.ctrlKey || ev.metaKey;
+
+    await performCaptureAction(currentEl, {
+      doDownload: accelKey,
+      includeHtmlInClipboard: !!(accelKey && ev.shiftKey)
+    });
+    return;
+  }
 
   if (ev.key === "ArrowUp") {
     const parent = currentEl.parentElement;
@@ -331,17 +346,42 @@ function waitForNextPaint() {
   });
 }
 
+async function dataUrlToBlob(dataUrl) {
+  const resp = await fetch(dataUrl);
+  return await resp.blob();
+}
+
 async function copyImageDataUrlToClipboard(dataUrl) {
   try {
     if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
       return false;
     }
 
-    const resp = await fetch(dataUrl);
-    const blob = await resp.blob();
+    const blob = await dataUrlToBlob(dataUrl);
     await navigator.clipboard.write([
       new ClipboardItem({
         [blob.type || "image/png"]: blob
+      })
+    ]);
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function copyImageAndHtmlToClipboard(dataUrl, html) {
+  try {
+    if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+      return false;
+    }
+
+    const blob = await dataUrlToBlob(dataUrl);
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        [blob.type || "image/png"]: blob,
+        "text/html": new Blob([html], { type: "text/html" }),
+        "text/plain": new Blob([html], { type: "text/plain" })
       })
     ]);
 

@@ -68,6 +68,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const devicePixelRatio = Number(msg?.devicePixelRatio) || 1;
       const suggestedName = msg?.suggestedName;
       const includeDataUrl = !!msg?.includeDataUrl;
+      const doDownload = !!msg?.doDownload;
       const windowId = sender?.tab?.windowId;
 
       const result = await captureAndDownloadElementWithFallback({
@@ -77,7 +78,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         viewportRect,
         devicePixelRatio,
         suggestedName,
-        includeDataUrl
+        includeDataUrl,
+        doDownload
       });
 
       return { ok: true, ...result };
@@ -113,7 +115,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
  * Captura o elemento completo usando CDP (chrome.debugger).
  * Requer permissão "debugger" no manifest.
  */
-async function captureAndDownloadElementViaCDP({ tabId, pageRect, suggestedName, includeDataUrl = false }) {
+async function captureAndDownloadElementViaCDP({ tabId, pageRect, suggestedName, includeDataUrl = false, doDownload = true }) {
   if (!pageRect || typeof pageRect.x !== "number") {
     throw new Error("pageRect inválido enviado pelo content script.");
   }
@@ -164,11 +166,13 @@ async function captureAndDownloadElementViaCDP({ tabId, pageRect, suggestedName,
     return await stitchPngBase64StripesToDataUrl(stripes, clip.width, clip.height);
   });
 
-  const downloadId = await chrome.downloads.download({
-    url: dataUrl,
-    filename,
-    saveAs: true
-  });
+  const downloadId = doDownload
+    ? await chrome.downloads.download({
+        url: dataUrl,
+        filename,
+        saveAs: true
+      })
+    : null;
 
   return {
     downloadId,
@@ -183,14 +187,16 @@ async function captureAndDownloadElementWithFallback({
   viewportRect,
   devicePixelRatio,
   suggestedName,
-  includeDataUrl
+  includeDataUrl,
+  doDownload = true
 }) {
   try {
     const cdpResult = await captureAndDownloadElementViaCDP({
       tabId,
       pageRect,
       suggestedName,
-      includeDataUrl
+      includeDataUrl,
+      doDownload
     });
 
     return {
@@ -205,7 +211,8 @@ async function captureAndDownloadElementWithFallback({
       viewportRect,
       devicePixelRatio,
       suggestedName,
-      includeDataUrl
+      includeDataUrl,
+      doDownload
     });
 
     return {
@@ -220,7 +227,8 @@ async function captureAndDownloadVisibleTab({
   viewportRect,
   devicePixelRatio = 1,
   suggestedName,
-  includeDataUrl = false
+  includeDataUrl = false,
+  doDownload = true
 }) {
   if (typeof windowId !== "number") {
     throw new Error("windowId inválido para captureVisibleTab.");
@@ -239,11 +247,13 @@ async function captureAndDownloadVisibleTab({
     devicePixelRatio
   );
 
-  const downloadId = await chrome.downloads.download({
-    url: dataUrl,
-    filename,
-    saveAs: true
-  });
+  const downloadId = doDownload
+    ? await chrome.downloads.download({
+        url: dataUrl,
+        filename,
+        saveAs: true
+      })
+    : null;
 
   return {
     downloadId,

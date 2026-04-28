@@ -4,7 +4,7 @@
 
 Descrição da extensão (manifest):
 
-> Seleciona elementos, captura PNG completo, baixa imagem e copia para clipboard (Ctrl/Shift copia outerHTML).
+> Seleciona elementos, captura PNG completo, copia imagem no clique/Enter e baixa com Ctrl; Ctrl+Shift inclui HTML no clipboard.
 
 ---
 
@@ -13,16 +13,23 @@ Descrição da extensão (manifest):
 - Atalho para ligar/desligar modo de seleção.
 - Overlay de highlight sem alterar layout.
 - Hit-test com amostragem ao redor do cursor (seleção mais estável).
-- Clique no elemento:
+- Clique ou `Enter` no elemento:
+  - captura PNG do elemento;
+  - copia **imagem** para clipboard por padrão.
+- `Ctrl+Clique` / `Ctrl+Enter` (`Cmd` no macOS):
   - captura PNG do elemento;
   - baixa arquivo PNG;
-  - copia **imagem** para clipboard por padrão.
+  - copia **imagem** para clipboard.
+- `Ctrl+Shift+Clique` / `Ctrl+Shift+Enter` (`Cmd+Shift` no macOS):
+  - captura PNG do elemento;
+  - baixa arquivo PNG;
+  - copia **imagem + HTML** para clipboard.
 - Suporte a elementos dentro de iframes, incluindo muitos casos cross-origin, quando permitido pelo navegador.
-- Clique com `Ctrl` ou `Shift`: copia **`outerHTML`** em vez da imagem.
 - `Esc`/`Escape`: cancela seleção ativa.
 - Navegação de seleção por teclado:
   - `ArrowUp`: pai
   - `ArrowDown`: primeiro filho
+  - `Enter`: captura elemento atual
 
 ---
 

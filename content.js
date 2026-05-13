@@ -198,6 +198,7 @@ async function performCaptureAction(el, { doDownload = false, includeHtmlInClipb
     width: absoluteRect.width,
     height: absoluteRect.height
   };
+  const preferVisibleTab = isRectFullyInsideViewport(viewportRect);
 
   const baseName = `${tag}${el.id ? "-" + el.id : ""}-${Date.now()}`;
 
@@ -212,6 +213,7 @@ async function performCaptureAction(el, { doDownload = false, includeHtmlInClipb
       pageRect,
       viewportRect,
       devicePixelRatio: window.devicePixelRatio || 1,
+      preferVisibleTab,
       suggestedName: baseName,
       includeDataUrl: true,
       doDownload
@@ -336,6 +338,19 @@ function clearHighlight() {
   if (overlayEl) {
     overlayEl.style.display = "none";
   }
+}
+
+function isRectFullyInsideViewport(rect) {
+  if (!rect || typeof rect.x !== "number") return false;
+
+  return (
+    rect.x >= 0 &&
+    rect.y >= 0 &&
+    rect.width > 0 &&
+    rect.height > 0 &&
+    rect.x + rect.width <= window.innerWidth &&
+    rect.y + rect.height <= window.innerHeight
+  );
 }
 
 function waitForNextPaint() {

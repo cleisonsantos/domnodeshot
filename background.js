@@ -67,6 +67,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const viewportRect = msg?.viewportRect;
       const devicePixelRatio = Number(msg?.devicePixelRatio) || 1;
       const suggestedName = msg?.suggestedName;
+      const preferVisibleTab = !!msg?.preferVisibleTab;
       const includeDataUrl = !!msg?.includeDataUrl;
       const doDownload = !!msg?.doDownload;
       const windowId = sender?.tab?.windowId;
@@ -78,6 +79,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         viewportRect,
         devicePixelRatio,
         suggestedName,
+        preferVisibleTab,
         includeDataUrl,
         doDownload
       });
@@ -187,9 +189,30 @@ async function captureAndDownloadElementWithFallback({
   viewportRect,
   devicePixelRatio,
   suggestedName,
+  preferVisibleTab = false,
   includeDataUrl,
   doDownload = true
 }) {
+  if (preferVisibleTab) {
+    try {
+      const visibleResult = await captureAndDownloadVisibleTab({
+        windowId,
+        viewportRect,
+        devicePixelRatio,
+        suggestedName,
+        includeDataUrl,
+        doDownload
+      });
+
+      return {
+        ...visibleResult,
+        captureMethod: "visible-tab"
+      };
+    } catch (err) {
+      console.warn("[DOM Selector] captureVisibleTab falhou, usando CDP:", err);
+    }
+  }
+
   try {
     const cdpResult = await captureAndDownloadElementViaCDP({
       tabId,

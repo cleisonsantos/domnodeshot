@@ -99,17 +99,65 @@ Eles viram:
 
 ## 5) Gerar refresh token
 
-Forma simples: usar OAuth Playground ou script local.
+Forma simples: usar OAuth 2.0 Playground.
 
-Escopo comum para publicação:
+Escopo para publicação:
 
 - `https://www.googleapis.com/auth/chromewebstore`
 
-Fluxo geral:
+### Passo a passo pelo OAuth 2.0 Playground
 
-1. autorizar conta dona da extensão;
-2. trocar authorization code por access/refresh token;
-3. guardar refresh token em secret `CHROME_REFRESH_TOKEN`.
+1. abrir https://developers.google.com/oauthplayground;
+2. clicar no ícone de engrenagem no canto superior direito;
+3. marcar **Use your own OAuth credentials**;
+4. preencher:
+   - **OAuth Client ID**: valor de `CHROME_CLIENT_ID`;
+   - **OAuth Client secret**: valor de `CHROME_CLIENT_SECRET`;
+5. no campo/lista de scopes, adicionar manualmente:
+
+```text
+https://www.googleapis.com/auth/chromewebstore
+```
+
+6. clicar **Authorize APIs**;
+7. fazer login com a mesma conta que possui permissão para publicar a extensão na Chrome Web Store;
+8. clicar **Exchange authorization code for tokens**;
+9. copiar o valor de **Refresh token**;
+10. atualizar o secret no GitHub:
+    - repositório → **Settings**;
+    - **Secrets and variables** → **Actions**;
+    - editar/criar `CHROME_REFRESH_TOKEN`;
+11. reexecutar o workflow de release/publicação.
+
+### Se o refresh token não aparecer
+
+1. confirmar que **Use your own OAuth credentials** está marcado;
+2. confirmar que o OAuth Client é do tipo **Desktop app**;
+3. confirmar que a conta logada é dona/publicadora da extensão;
+4. confirmar escopo exato:
+
+```text
+https://www.googleapis.com/auth/chromewebstore
+```
+
+5. revogar acesso antigo em https://myaccount.google.com/permissions e gerar token novamente.
+
+### Diagnóstico do erro `Failed to obtain OAuth access token`
+
+Esse erro acontece antes do upload para a Chrome Web Store, na troca:
+
+```text
+refresh_token → access_token
+```
+
+Causas comuns:
+
+- `CHROME_REFRESH_TOKEN` expirado, revogado ou gerado para outro client;
+- `CHROME_CLIENT_ID` / `CHROME_CLIENT_SECRET` não correspondem ao refresh token;
+- conta usada no OAuth não tem permissão para publicar a extensão;
+- OAuth consent/app em modo teste com autorização inválida.
+
+Correção mais comum: gerar novo refresh token pelo OAuth Playground e substituir `CHROME_REFRESH_TOKEN` no GitHub Actions.
 
 ---
 

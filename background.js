@@ -28,18 +28,22 @@ chrome.commands.onCommand.addListener(async (command) => {
     // Garante que o content script existe (se não existir, injeta).
     await ensureInjected(tabId);
 
-    // Aplica/remove CSS conforme estado.
-    if (nextActive) {
-      await chrome.scripting.insertCSS({
-        target: { tabId, allFrames: true },
-        files: ["styles.css"]
-      });
-    } else {
-      // removeCSS pode falhar em alguns cenários; tratamos no catch.
-      await chrome.scripting.removeCSS({
-        target: { tabId, allFrames: true },
-        files: ["styles.css"]
-      });
+    // Aplica/remove CSS conforme estado. Falhas aqui nao devem bloquear o atalho:
+    // alguns frames recusam CSS, mas o content script ainda pode ativar a selecao.
+    try {
+      if (nextActive) {
+        await chrome.scripting.insertCSS({
+          target: { tabId, allFrames: true },
+          files: ["styles.css"]
+        });
+      } else {
+        await chrome.scripting.removeCSS({
+          target: { tabId, allFrames: true },
+          files: ["styles.css"]
+        });
+      }
+    } catch (cssErr) {
+      console.warn("[DOM Selector] Falha ao alternar CSS; seguindo com o atalho:", cssErr);
     }
 
     // Pede para o content.js ativar/desativar listeners e UX.
@@ -93,12 +97,53 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
-  // 2) Desativação automática após captura (HTML/Imagem)
+  // 2) Download da imagem ja editada no modal do content script
+  if (msg?.type === "DOWNLOAD_EDITED_IMAGE") {
+    (async () => {
+      const dataUrl = String(msg?.dataUrl || "");
+      if (!dataUrl.startsWith("data:image/png")) {
+        throw new Error("Imagem PNG invalida para download.");
+      }
+
+      const safeName = sanitizeFilename(msg?.suggestedName || `capture-${Date.now()}`);
+      const downloadId = await chrome.downloads.download({
+        url: dataUrl,
+        filename: `domnodeshot/${safeName}.png`,
+        saveAs: true
+      });
+
+      return { ok: true, downloadId };
+    })()
+      .then(sendResponse)
+      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+
+    return true;
+  }
+
+  // 3) Desativação automática após captura (HTML/Imagem)
   if (msg?.type === "SELECTION_DEACTIVATED") {
     const tabId = sender?.tab?.id;
     if (!tabId) return;
 
     tabState.set(tabId, false);
+
+    if (!msg.keepCss) {
+      chrome.scripting
+        .removeCSS({
+          target: { tabId, allFrames: true },
+          files: ["styles.css"]
+        })
+        .catch(() => {
+          // Pode falhar em páginas que recarregaram; ignorar.
+        });
+    }
+
+    sendResponse?.({ ok: true });
+  }
+
+  if (msg?.type === "EDITOR_CLOSED") {
+    const tabId = sender?.tab?.id;
+    if (!tabId) return;
 
     chrome.scripting
       .removeCSS({

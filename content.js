@@ -756,7 +756,7 @@ function renderEditorAction(ctx, action, crop, isPreview) {
   if (!action?.rect) return;
 
   if (action.type === "crop-preview") {
-    drawEditorRectOutline(ctx, toCanvasRect(action.rect, crop), "#ffffff", true);
+    renderEditorCropPreview(ctx, action, crop);
     return;
   }
 
@@ -813,6 +813,23 @@ function renderEditorBlur(ctx, action, crop) {
   ctx.restore();
 }
 
+function renderEditorCropPreview(ctx, action, crop) {
+  const canvasRect = { x: 0, y: 0, width: ctx.canvas.width, height: ctx.canvas.height };
+  const rect = intersectRects(toCanvasRect(action.rect, crop), canvasRect);
+  if (!rect) return;
+
+  ctx.save();
+  ctx.fillStyle = "rgba(15, 23, 42, 0.32)";
+  ctx.fillRect(0, 0, ctx.canvas.width, rect.y);
+  ctx.fillRect(0, rect.y + rect.height, ctx.canvas.width, ctx.canvas.height - rect.y - rect.height);
+  ctx.fillRect(0, rect.y, rect.x, rect.height);
+  ctx.fillRect(rect.x + rect.width, rect.y, ctx.canvas.width - rect.x - rect.width, rect.height);
+
+  drawEditorRectOutline(ctx, rect, "rgba(15, 23, 42, 0.95)", true, 4);
+  drawEditorRectOutline(ctx, rect, "#ffffff", true, 2);
+  ctx.restore();
+}
+
 function renderEditorShape(ctx, action, crop) {
   const rect = toCanvasRect(action.rect, crop);
   const shapeType = action.shapeType || "rect";
@@ -864,12 +881,18 @@ function drawEditorLineShape(ctx, action, crop, withArrowHead) {
   ctx.stroke();
 }
 
-function drawEditorRectOutline(ctx, rect, color, dashed = false) {
+function drawEditorRectOutline(ctx, rect, color, dashed = false, lineWidth = 2) {
   ctx.save();
   ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = lineWidth;
   if (dashed) ctx.setLineDash([8, 5]);
-  ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+  const offset = lineWidth % 2 === 1 ? 0.5 : 0;
+  ctx.strokeRect(
+    Math.round(rect.x) + offset,
+    Math.round(rect.y) + offset,
+    Math.max(1, Math.round(rect.width)),
+    Math.max(1, Math.round(rect.height))
+  );
   ctx.restore();
 }
 
@@ -1185,7 +1208,7 @@ async function onKeyDownCapture(ev) {
     ev.stopImmediatePropagation();
 
     await performCaptureAction(currentEl, {
-      action: getCaptureActionFromEvent(ev)
+      action: getCaptureActionFromEvent(ev, { allowEditor: true })
     });
     return;
   }

@@ -4,7 +4,7 @@
 
 Descrição da extensão (manifest):
 
-> Seleciona elementos, copia imagem no clique/Enter, baixa PNG com Ctrl, copia HTML com Shift e abre editor com Ctrl+Shift+clique.
+> Seleciona elementos, copia imagem no clique/Enter, baixa PNG com Ctrl, copia HTML com Shift e abre editor com Ctrl+Shift.
 
 ---
 
@@ -22,7 +22,7 @@ Descrição da extensão (manifest):
   - copia **imagem** para clipboard.
 - `Shift+Clique` / `Shift+Enter`:
   - copia o **HTML** do elemento para clipboard.
-- `Ctrl+Shift+Clique` (`Cmd+Shift+Clique` no macOS):
+- `Ctrl+Shift+Clique` / `Ctrl+Shift+Enter` (`Cmd+Shift` no macOS):
   - captura PNG do elemento;
   - abre o editor de imagem como modal centralizado.
 - Suporte a elementos dentro de iframes, incluindo muitos casos cross-origin, quando permitido pelo navegador.

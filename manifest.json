@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "DOMnodeshot",
-  "version": "1.1.0",
-  "description": "Seleciona elementos, copia imagem no clique/Enter, baixa PNG com Ctrl, copia HTML com Shift e edita com Ctrl+Shift+clique.",
+  "version": "1.1.1",
+  "description": "Seleciona elementos, copia imagem no clique/Enter, baixa PNG com Ctrl, copia HTML com Shift e edita com Ctrl+Shift.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",

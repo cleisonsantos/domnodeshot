@@ -808,9 +808,9 @@ function renderEditorAction(ctx, action, crop, isPreview) {
 function renderEditorHighlight(ctx, action, crop) {
   const rect = toCanvasRect(action.rect, crop);
   ctx.save();
-  ctx.fillStyle = "rgba(255, 235, 59, 0.55)";
-  ctx.strokeStyle = "rgba(202, 138, 4, 0.95)";
-  ctx.lineWidth = 3;
+  ctx.fillStyle = "rgba(255, 240, 0, 0.45)";
+  ctx.strokeStyle = "rgba(202, 138, 4, 0.9)";
+  ctx.lineWidth = 2;
   ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
   ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
   ctx.restore();

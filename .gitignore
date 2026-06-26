@@ -1,2 +1,6 @@
 extension.zip
 dist
+node_modules/
+package-lock.json
+package.json
+*.mp4

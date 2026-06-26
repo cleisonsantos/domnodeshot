@@ -442,6 +442,18 @@ function openImageEditor({ dataUrl, suggestedName }) {
 
   imageEditor = state;
 
+  root.addEventListener("click", (ev) => {
+    if (!state.shapeMenuOpen) return;
+    const target = ev.target;
+    if (
+      state.controls.shapeMenu.contains(target) ||
+      state.buttons.shape.contains(target)
+    ) {
+      return;
+    }
+    setShapeMenuOpen(false);
+  });
+
   highlightButton.addEventListener("click", () => selectEditorTool("highlight"));
   blurButton.addEventListener("click", () => selectEditorTool("blur"));
   cropButton.addEventListener("click", () => selectEditorTool("crop"));
@@ -615,9 +627,24 @@ function updateEditorUi() {
   updateEditorStatus(toolLabel || "");
 }
 
-function updateEditorStatus(text) {
+function updateEditorStatus(text, options = {}) {
   if (!imageEditor?.controls?.status) return;
-  imageEditor.controls.status.textContent = text;
+  const { type, duration } = options;
+  const el = imageEditor.controls.status;
+  clearTimeout(el._statusTimeout);
+  el.textContent = text;
+  el.classList.remove("is-success", "is-error");
+  if (type === "success" || type === "error") {
+    el.classList.add(type === "success" ? "is-success" : "is-error");
+  }
+  if (duration && Number.isFinite(duration)) {
+    el._statusTimeout = setTimeout(() => {
+      el.classList.remove("is-success", "is-error");
+      if (el.textContent === text) {
+        el.textContent = "";
+      }
+    }, duration);
+  }
 }
 
 function formatShapeType(shapeType) {
@@ -781,9 +808,9 @@ function renderEditorAction(ctx, action, crop, isPreview) {
 function renderEditorHighlight(ctx, action, crop) {
   const rect = toCanvasRect(action.rect, crop);
   ctx.save();
-  ctx.fillStyle = "rgba(250, 204, 21, 0.32)";
-  ctx.strokeStyle = "rgba(217, 119, 6, 0.95)";
-  ctx.lineWidth = 3;
+  ctx.fillStyle = "rgba(255, 240, 0, 0.45)";
+  ctx.strokeStyle = "rgba(202, 138, 4, 0.9)";
+  ctx.lineWidth = 2;
   ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
   ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
   ctx.restore();
@@ -1126,11 +1153,11 @@ async function copyEditorImage() {
       })
     ]);
 
-    updateEditorStatus("Copied image.");
+    updateEditorStatus("✓ Imagem copiada para a área de transferência.", { type: "success", duration: 2600 });
     return true;
   } catch (err) {
     console.warn("[DOM Selector] Falha ao copiar imagem editada:", err);
-    updateEditorStatus("Copy failed.");
+    updateEditorStatus("✗ Falha ao copiar a imagem.", { type: "error", duration: 4000 });
     return false;
   }
 }

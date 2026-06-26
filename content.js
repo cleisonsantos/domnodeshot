@@ -272,6 +272,11 @@ async function performCaptureAction(el, { action = "copy-image" } = {}) {
     } else {
       copied = await copyImageDataUrlToClipboard(imageResult.dataUrl);
       copiedType = copied ? "image" : "none";
+      if (copied) {
+        showPageNotification("Imagem copiada para a área de transferência.", "success");
+      } else {
+        showPageNotification("Não foi possível copiar a imagem. Tente novamente ou use Download.", "error");
+      }
     }
   } else {
     if (action === "editor") {
@@ -1331,15 +1336,15 @@ async function copyImageDataUrlToClipboard(dataUrl) {
       return false;
     }
 
-    const blob = await dataUrlToBlob(dataUrl);
     await navigator.clipboard.write([
       new ClipboardItem({
-        [blob.type || "image/png"]: blob
+        "image/png": dataUrlToBlob(dataUrl)
       })
     ]);
 
     return true;
-  } catch {
+  } catch (err) {
+    console.warn("[DOM Selector] Falha ao copiar imagem:", err);
     return false;
   }
 }
@@ -1379,6 +1384,26 @@ async function copyToClipboard(text) {
   } catch (e) {
     return false;
   }
+}
+
+function showPageNotification(message, type = "info") {
+  const existing = document.querySelector(".domnodeshot-page-notification");
+  if (existing) existing.remove();
+
+  const el = document.createElement("div");
+  el.className = `domnodeshot-page-notification is-${type}`;
+  el.textContent = message;
+  el.setAttribute("role", "status");
+  el.setAttribute("aria-live", "polite");
+  document.body.appendChild(el);
+
+  requestAnimationFrame(() => el.classList.add("is-visible"));
+
+  setTimeout(() => {
+    el.classList.remove("is-visible");
+    el.addEventListener("transitionend", () => el.remove(), { once: true });
+    setTimeout(() => el.remove(), 300);
+  }, 2600);
 }
 
 function createFrameRequestId() {

@@ -11,6 +11,8 @@
 // - overlay posicionado pelo getBoundingClientRect
 // - navegação de seleção por teclado (↑ pai, ↓ primeiro filho, ESC cancela)
 
+const ext = globalThis.browser ?? globalThis.chrome;
+
 let active = false;
 let currentEl = null;
 let overlayEl = null;
@@ -199,7 +201,7 @@ async function performCaptureAction(el, { action = "copy-image" } = {}) {
 
   if (action === "copy-html") {
     setActive(false);
-    chrome.runtime.sendMessage({ type: "SELECTION_DEACTIVATED" });
+    ext.runtime.sendMessage({ type: "SELECTION_DEACTIVATED" });
     await waitForNextPaint();
 
     const copiedHtml = await copyToClipboard(outerHTML);
@@ -241,12 +243,12 @@ async function performCaptureAction(el, { action = "copy-image" } = {}) {
   const baseName = `${tag}${el.id ? "-" + el.id : ""}-${Date.now()}`;
 
   setActive(false);
-  chrome.runtime.sendMessage({ type: "SELECTION_DEACTIVATED", keepCss: action === "editor" });
+  ext.runtime.sendMessage({ type: "SELECTION_DEACTIVATED", keepCss: action === "editor" });
   await waitForNextPaint();
 
   let imageResult = null;
   try {
-    imageResult = await chrome.runtime.sendMessage({
+    imageResult = await ext.runtime.sendMessage({
       type: "CAPTURE_ELEMENT_CDP",
       pageRect,
       viewportRect,
@@ -276,7 +278,7 @@ async function performCaptureAction(el, { action = "copy-image" } = {}) {
   } else {
     if (action === "editor") {
       try {
-        chrome.runtime.sendMessage({ type: "EDITOR_CLOSED" })?.catch?.(() => {});
+        ext.runtime.sendMessage({ type: "EDITOR_CLOSED" })?.catch?.(() => {});
       } catch {
         // Ignora runtime desconectado; o fallback abaixo ainda preserva o HTML.
       }
@@ -525,7 +527,7 @@ function closeImageEditor({ releaseCss = true } = {}) {
 
   if (releaseCss) {
     try {
-      chrome.runtime.sendMessage({ type: "EDITOR_CLOSED" })?.catch?.(() => {});
+      ext.runtime.sendMessage({ type: "EDITOR_CLOSED" })?.catch?.(() => {});
     } catch {
       // O editor pode ser fechado em paginas onde o runtime ja foi desconectado.
     }
@@ -1184,7 +1186,7 @@ async function downloadEditorImage() {
   const dataUrl = state.canvas.toDataURL("image/png");
 
   try {
-    const result = await chrome.runtime.sendMessage({
+    const result = await ext.runtime.sendMessage({
       type: "DOWNLOAD_EDITED_IMAGE",
       dataUrl,
       suggestedName: state.suggestedName
@@ -1223,7 +1225,7 @@ async function onKeyDownCapture(ev) {
     ev.stopImmediatePropagation();
 
     setActive(false);
-    chrome.runtime.sendMessage({ type: "SELECTION_DEACTIVATED" });
+    ext.runtime.sendMessage({ type: "SELECTION_DEACTIVATED" });
     return;
   }
 
@@ -1508,7 +1510,7 @@ window.addEventListener("message", (event) => {
 });
 
 // Listener de mensagens do background
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+ext.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "PING") {
     sendResponse({ ok: true });
     return; // sem async

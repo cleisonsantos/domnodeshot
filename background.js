@@ -1,4 +1,4 @@
-// background.js (Manifest V3 - service worker)
+// background.js (Manifest V3 - service worker no Chrome / background script no Firefox)
 //
 // Responsável por:
 // - ouvir o atalho (commands)
@@ -6,17 +6,22 @@
 // - manter o estado por aba (ativo/inativo)
 // - solicitar ativação/desativação ao content script
 
+const ext = globalThis.browser ?? globalThis.chrome;
 const tabState = new Map(); // tabId -> boolean (ativo)
 
-chrome.commands.onCommand.addListener(async (command) => {
+ext.commands.onCommand.addListener(async (command) => {
   if (command !== "toggle-selector") return;
 
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const [tab] = await ext.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return;
 
-  // Páginas internas do Chrome não permitem injeção (chrome://, edge:// etc.)
+  // Páginas internas dos navegadores não permitem injeção.
   const url = tab.url || "";
-  if (/^(chrome|edge|brave):\/\//i.test(url) || url.startsWith("chrome-extension://")) {
+  if (
+    /^(chrome|edge|brave):\/\//i.test(url) ||
+    url.startsWith("about:") ||
+    /^(chrome|moz)-extension:\/\//i.test(url)
+  ) {
     console.info("[DOM Selector] Página restrita para extensões:", url);
     return;
   }
@@ -32,12 +37,12 @@ chrome.commands.onCommand.addListener(async (command) => {
     // alguns frames recusam CSS, mas o content script ainda pode ativar a selecao.
     try {
       if (nextActive) {
-        await chrome.scripting.insertCSS({
+        await ext.scripting.insertCSS({
           target: { tabId, allFrames: true },
           files: ["styles.css"]
         });
       } else {
-        await chrome.scripting.removeCSS({
+        await ext.scripting.removeCSS({
           target: { tabId, allFrames: true },
           files: ["styles.css"]
         });
@@ -47,7 +52,7 @@ chrome.commands.onCommand.addListener(async (command) => {
     }
 
     // Pede para o content.js ativar/desativar listeners e UX.
-    await chrome.tabs.sendMessage(tabId, { type: "SET_ACTIVE", active: nextActive });
+    await ext.tabs.sendMessage(tabId, { type: "SET_ACTIVE", active: nextActive });
 
     tabState.set(tabId, nextActive);
   } catch (err) {
@@ -58,7 +63,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 // Mensagens vindas do content script:
 // - SELECTION_DEACTIVATED: apenas sincroniza estado e remove CSS
 // - CAPTURE_ELEMENT_CDP: captura o elemento completo via Chrome DevTools Protocol
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+ext.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // 1) Captura de imagem do elemento via CDP
   if (msg?.type === "CAPTURE_ELEMENT_CDP") {
     (async () => {
@@ -106,7 +111,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
 
       const safeName = sanitizeFilename(msg?.suggestedName || `capture-${Date.now()}`);
-      const downloadId = await chrome.downloads.download({
+      const downloadId = await ext.downloads.download({
         url: dataUrl,
         filename: `domnodeshot/${safeName}.png`,
         saveAs: true
@@ -128,7 +133,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     tabState.set(tabId, false);
 
     if (!msg.keepCss) {
-      chrome.scripting
+      ext.scripting
         .removeCSS({
           target: { tabId, allFrames: true },
           files: ["styles.css"]
@@ -145,7 +150,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     const tabId = sender?.tab?.id;
     if (!tabId) return;
 
-    chrome.scripting
+    ext.scripting
       .removeCSS({
         target: { tabId, allFrames: true },
         files: ["styles.css"]
@@ -214,7 +219,7 @@ async function captureAndDownloadElementViaCDP({ tabId, pageRect, suggestedName,
   });
 
   const downloadId = doDownload
-    ? await chrome.downloads.download({
+    ? await ext.downloads.download({
         url: dataUrl,
         filename,
         saveAs: true
@@ -305,7 +310,7 @@ async function captureAndDownloadVisibleTab({
   const safeName = sanitizeFilename(suggestedName || `capture-${Date.now()}`);
   const filename = `domnodeshot/${safeName}.png`;
 
-  const visibleDataUrl = await chrome.tabs.captureVisibleTab(windowId, {
+  const visibleDataUrl = await ext.tabs.captureVisibleTab(windowId, {
     format: "png"
   });
 
@@ -316,7 +321,7 @@ async function captureAndDownloadVisibleTab({
   );
 
   const downloadId = doDownload
-    ? await chrome.downloads.download({
+    ? await ext.downloads.download({
         url: dataUrl,
         filename,
         saveAs: true
@@ -438,7 +443,7 @@ async function ensureInjected(tabId) {
   const hasReceiver = await ping(tabId);
   if (hasReceiver) return;
 
-  await chrome.scripting.executeScript({
+  await ext.scripting.executeScript({
     target: { tabId, allFrames: true },
     files: ["content.js"]
   });
@@ -447,27 +452,31 @@ async function ensureInjected(tabId) {
   await ping(tabId);
 }
 
-function ping(tabId) {
-  return new Promise((resolve) => {
-    chrome.tabs.sendMessage(tabId, { type: "PING" }, () => {
-      // Se não existe content script, teremos lastError.
-      resolve(!chrome.runtime.lastError);
-    });
-  });
+async function ping(tabId) {
+  try {
+    await ext.tabs.sendMessage(tabId, { type: "PING" });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function withDebugger(tabId, fn) {
+  if (!ext.debugger) {
+    throw new Error("API debugger indisponível neste navegador.");
+  }
+
   const target = { tabId };
 
-  await chrome.debugger.attach(target, "1.3");
+  await ext.debugger.attach(target, "1.3");
   try {
     const send = (method, params = {}) =>
-      chrome.debugger.sendCommand(target, method, params);
+      ext.debugger.sendCommand(target, method, params);
 
     return await fn(send);
   } finally {
     try {
-      await chrome.debugger.detach(target);
+      await ext.debugger.detach(target);
     } catch {
       // ignora (aba fechada, debugger já removido etc.)
     }

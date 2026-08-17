@@ -1,4 +1,4 @@
-# DOMnodeshot — Extensão Chrome (Manifest V3)
+# DOMnodeshot — Extensão Chrome e Firefox (Manifest V3)
 
 `DOMnodeshot` ativa modo de seleção visual de elementos na página e captura imagem do elemento selecionado, inclusive em cenários com iframes.
 
@@ -65,10 +65,37 @@ Resultado:
 
 ## Instalação (modo dev)
 
+### Chrome
+
 1. Abrir `chrome://extensions`
 2. Ativar **Modo do desenvolvedor**
 3. Clicar **Carregar sem compactação**
 4. Selecionar pasta do projeto
+
+### Firefox
+
+1. Gerar a versão Firefox:
+
+   ```bash
+   ./scripts/build-firefox.sh
+   ```
+
+2. Abrir `about:debugging#/runtime/this-firefox`.
+3. Clicar em **Carregar extensão temporária**.
+4. Selecionar `dist/firefox/manifest.json`.
+
+O mesmo comando também cria `dist/domnodeshot-firefox-<versão>.zip`, pronto
+para envio ao Firefox Add-ons. Para teste temporário, use o `manifest.json` da
+pasta descompactada, não o ZIP.
+
+Firefox Release e navegadores baseados nele, como o Zen, bloqueiam a instalação
+direta de um ZIP não assinado. Para testar localmente no Zen, use o mesmo fluxo
+de `about:debugging` e carregue o `manifest.json`; para distribuição normal, envie
+o ZIP ao Firefox Add-ons para assinatura da Mozilla.
+
+O Firefox não implementa a API `debugger` do Chrome. Por isso, nessa versão a
+captura de imagem usa `tabs.captureVisibleTab`: elementos totalmente visíveis são
+recortados normalmente, mas conteúdo fora do viewport não entra na captura.
 
 ---
 
@@ -93,7 +120,7 @@ Resultado:
 
 ### Justificativa resumida
 
-- `debugger`: captura screenshot completa do elemento fora do viewport.
+- `debugger` (somente Chrome): captura screenshot completa do elemento fora do viewport.
 - `downloads`: salva o PNG capturado.
 - `clipboardWrite`: copia imagem ou HTML para a área de transferência.
 - `scripting` / `activeTab` / `tabs`: injeta o content script, controla o modo de seleção e envia mensagens.
@@ -123,4 +150,4 @@ Materiais prontos:
 
 ## Licença
 
-Definir (MIT, Apache-2.0, etc.).
+Este projeto é distribuído sob a licença [MIT](LICENSE).
